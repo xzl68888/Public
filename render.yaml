@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: burn-chat
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "18"
