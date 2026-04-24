@@ -1,6 +1,6 @@
 /**
- * BURN CHAT - 加密自毁聊天服务器
- * 多人实时社交版 (纯JS实现)
+ * BURN CHAT - 加密自毁聊天服务器 (云部署版)
+ * 纯内存数据库，适配 Render/Railway 等云平台
  */
 
 const express = require('express');
@@ -15,18 +15,31 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-// 数据库
+// 数据库 - 纯内存模式（云平台文件系统只读）
 let db;
-const DB_PATH = path.join(__dirname, 'burnchat.db');
+const IS_CLOUD = process.env.RENDER || process.env.RAILWAY || process.env.FLY_REGION;
 
 async function initDB() {
   const SQL = await initSqlJs();
   
-  if (fs.existsSync(DB_PATH)) {
-    const fileBuffer = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(fileBuffer);
-  } else {
+  if (IS_CLOUD) {
+    // 云环境：纯内存模式，不写文件
+    console.log('☁️  云环境检测：使用内存数据库');
     db = new SQL.Database();
+  } else {
+    // 本地环境：尝试持久化
+    const DB_PATH = path.join(__dirname, 'burnchat.db');
+    try {
+      if (fs.existsSync(DB_PATH)) {
+        const fileBuffer = fs.readFileSync(DB_PATH);
+        db = new SQL.Database(fileBuffer);
+      } else {
+        db = new SQL.Database();
+      }
+    } catch (e) {
+      console.log('⚠️  数据库文件读写失败，切换到内存模式');
+      db = new SQL.Database();
+    }
   }
   
   db.run(`
@@ -39,30 +52,47 @@ async function initDB() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
-  
-  saveDB();
 }
 
 function saveDB() {
-  const data = db.export();
-  const buffer = Buffer.from(data);
-  fs.writeFileSync(DB_PATH, buffer);
+  if (IS_CLOUD) return; // 云环境不保存
+  
+  try {
+    const data = db.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(path.join(__dirname, 'burnchat.db'), buffer);
+  } catch (e) {
+    // 忽略保存错误
+  }
 }
 
 // 在线用户
 const onlineUsers = new Map();
 
-// 静态文件 + CORS（允许 APP 跨域访问）
+// 静态文件
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-// 允许跨域
+// CORS
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
+});
+
+// ===== 健康检查 =====
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'burn-chat', users: onlineUsers.size });
+});
+
+app.get('/api/ping', (req, res) => {
+  res.json({ pong: true, time: Date.now() });
 });
 
 // ===== API =====
@@ -145,8 +175,6 @@ app.get('/api/online', (req, res) => {
 
 wss.on('connection', (ws, req) => {
   let currentUser = null;
-  
-  // 获取客户端 IP
   const clientIp = req.socket.remoteAddress;
   
   ws.on('message', (data) => {
@@ -194,7 +222,7 @@ wss.on('connection', (ws, req) => {
                 }))
             }));
             
-            console.log(`✅ ${user.username} 已连接 (${clientIp})`);
+            console.log(`✅ ${user.username} 已连接`);
           }
           break;
         }
@@ -258,32 +286,15 @@ function randomColor() {
 initDB().then(() => {
   const PORT = process.env.PORT || 3000;
   server.listen(PORT, '0.0.0.0', () => {
-    const os = require('os');
-    const interfaces = os.networkInterfaces();
-    const ips = [];
-    
-    Object.values(interfaces).forEach(iface => {
-      iface.forEach(addr => {
-        if (addr.family === 'IPv4' && !addr.internal) {
-          ips.push(addr.address);
-        }
-      });
-    });
-    
     console.log(`
 ╔══════════════════════════════════════════════════════╗
-║                                                      ║
-║   🔥 BURN CHAT APP 服务器已启动                       ║
-║                                                      ║
-║   本地访问:   http://localhost:${PORT}                  ║
-${ips.map(ip => `║   局域网:     http://${ip}:${PORT}                  ║`).join('\n')}
-║                                                      ║
-║   📱 APP 使用方法：                                   ║
-║   1. 在 APP 设置中填入服务器地址                      ║
-║      http://<你的IP>:${PORT}                           ║
-║   2. 注册/登录后即可使用                              ║
-║                                                      ║
+║   🔥 BURN CHAT 服务器已启动                           ║
+║   端口: ${PORT}                                        ║
+║   环境: ${IS_CLOUD ? '云部署' : '本地'}                ║
 ╚══════════════════════════════════════════════════════╝
     `);
   });
+}).catch(err => {
+  console.error('❌ 启动失败:', err);
+  process.exit(1);
 });
