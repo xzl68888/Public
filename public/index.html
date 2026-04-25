@@ -1171,7 +1171,7 @@ function receiveMessage(data) {
         ${data.content}
         <div class="msg-meta">
           <span class="msg-time">${time}</span>
-          <span class="msg-burn burning">🔥 ${data.burnAfter}s</span>
+          <span class="msg-burn burning">BURN ${data.burnAfter}s</span>
         </div>
       </div>
     </div>
@@ -1196,7 +1196,7 @@ function startBurnTimer(msgId, seconds) {
       burnMessage(msgId);
       return;
     }
-    burnSpan.textContent = `🔥 ${remaining}s`;
+    burnSpan.textContent = `BURN ${remaining}s`;
   }, 1000);
 
   messageTimers[msgId] = timer;
