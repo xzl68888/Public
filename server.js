@@ -163,6 +163,9 @@ wss.on('connection', (ws) => {
             fromAvatar: currentUser.avatar,
             fromColor: currentUser.color,
             content: msg.content,
+            mediaType: msg.mediaType || null,
+            mediaData: msg.mediaData || null,
+            mediaName: msg.mediaName || null,
             burnAfter: msg.burnAfter || 10,
             timestamp: Date.now()
           };
