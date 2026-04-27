@@ -1219,7 +1219,22 @@ function connectWebSocket() {
 
   ws.onmessage = (e) => {
     let data = e.data;
-    // 如果收到的是字符串但看起来像 JSON，解析它
+    // 防御：如果收到的是 Blob，先转为文本
+    if (data instanceof Blob) {
+      const reader = new FileReader();
+      reader.onload = function() {
+        let text = reader.result;
+        try { 
+          const parsed = JSON.parse(text); 
+          handleMessage(parsed);
+        } catch(err) { 
+          console.error('Blob 解析失败:', text); 
+        }
+      };
+      reader.readAsText(data);
+      return;
+    }
+    // 如果收到的是字符串，解析为 JSON
     if (typeof data === 'string') {
       try { data = JSON.parse(data); } catch(err) { console.error('解析失败:', data); return; }
     }
@@ -1355,10 +1370,15 @@ function receiveMessage(data) {
   if (typeof data === 'string') {
     try { data = JSON.parse(data); } catch(e) { console.error('receiveMessage 解析失败:', data); return; }
   }
+  
   // 防御：确保 content 是字符串
   if (data && typeof data.content === 'object' && data.content !== null) {
     console.warn('收到对象类型的 content:', data.content);
     data.content = data.content.text || data.content.message || JSON.stringify(data.content);
+  }
+  // 再次强制转换，确保是字符串
+  if (data && data.content !== undefined && typeof data.content !== 'string') {
+    data.content = String(data.content);
   }
 
   const container = document.getElementById('chatMessages');
