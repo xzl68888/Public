@@ -1331,7 +1331,7 @@ document.getElementById('chatInput').addEventListener('input', () => {
 
 function sendMessage() {
   const input = document.getElementById('chatInput');
-  const content = input.value.trim();
+  const content = String(input.value || '').trim();
   if (!content || !activeChat || !ws) return;
 
   ws.send(JSON.stringify({
@@ -1359,7 +1359,8 @@ function receiveMessage(data) {
   } else if (data.mediaType === 'video') {
     content = `<video src="${data.mediaData}" class="msg-video" controls style="max-width:100%;border-radius:12px;"></video>`;
   } else {
-    content = data.content;
+    // Safety check: ensure content is a string
+    content = (typeof data.content === 'string') ? data.content : String(data.content || '');
   }
 
   const msgHTML = `
