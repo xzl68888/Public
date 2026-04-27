@@ -1218,7 +1218,11 @@ function connectWebSocket() {
   };
 
   ws.onmessage = (e) => {
-    const data = JSON.parse(e.data);
+    let data = e.data;
+    // 如果收到的是字符串但看起来像 JSON，解析它
+    if (typeof data === 'string') {
+      try { data = JSON.parse(data); } catch(err) { console.error('解析失败:', data); return; }
+    }
     handleMessage(data);
   };
 
@@ -1347,6 +1351,16 @@ function sendMessage() {
 
 // ===== 接收消息 =====
 function receiveMessage(data) {
+  // 防御：如果 data 是字符串，尝试解析
+  if (typeof data === 'string') {
+    try { data = JSON.parse(data); } catch(e) { console.error('receiveMessage 解析失败:', data); return; }
+  }
+  // 防御：确保 content 是字符串
+  if (data && typeof data.content === 'object' && data.content !== null) {
+    console.warn('收到对象类型的 content:', data.content);
+    data.content = data.content.text || data.content.message || JSON.stringify(data.content);
+  }
+
   const container = document.getElementById('chatMessages');
   const isSent = data.sent;
   const time = new Date(data.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
