@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BURN CHAT - 加密自焚终端</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app" class="telegram-theme">
+        <header class="chat-header">
+            <div class="logo-container">
+                <img src="logo.jpg" alt="Logo" class="app-logo">
+                <span class="brand-name">BURN CHAT</span>
+            </div>
+            <div id="status">正在初始化加密通道...</div>
+        </header>
+
+        <main id="chatMessages" class="messages-container"></main>
+
+        <footer class="input-panel">
+            <div class="burn-timer-selector">
+                <label><input type="radio" name="ttl" value="10"> 10s</label>
+                <label><input type="radio" name="ttl" value="30"> 30s</label>
+                <label><input type="radio" name="ttl" value="60" checked> 60s</label>
+            </div>
+            <div class="input-wrapper">
+                <textarea id="chatInput" placeholder="输入阅后即焚消息..." rows="1"></textarea>
+                <button id="sendBtn">➤</button>
+            </div>
+        </footer>
+    </div>
+    <script src="burn.js"></script>
+</body>
+</html>
